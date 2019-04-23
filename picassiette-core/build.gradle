@@ -28,6 +28,14 @@ dependencies {
     implementation "org.jetbrains.kotlinx:kotlinx-coroutines-core:$coroutine_version"
     implementation "org.jetbrains.kotlinx:kotlinx-coroutines-android:$coroutine_version"
 
+    implementation "androidx.legacy:legacy-support-v4:$legacy_support_v4_version"
+
+    implementation "com.jakewharton.timber:timber:$timber_version"
+    implementation "com.jakewharton:disklrucache:$disklrucache_version"
+
+    implementation "com.google.code.findbugs:jsr305:$google_code_findbugs_jsr_version"
+    implementation "com.google.code.gson:gson:$gson_version"
+
     testImplementation "junit:junit:$junit_version"
     androidTestImplementation "androidx.test:runner:$test_runner_version"
 }
