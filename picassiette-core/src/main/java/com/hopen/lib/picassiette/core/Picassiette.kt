@@ -18,6 +18,16 @@ import java.util.concurrent.locks.Condition
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
 
+/**
+ * The main class of the library.
+ *
+ * It helps to fetch custom data (not only Bitmap) with a
+ * long running operation in RecyclerView (or ListView).
+ * When your data is a Bitmap, use advanced library as
+ * Picasso or Glide instead.
+ *
+ * See the app sample source code to know how to use it.
+ */
 class Picassiette<R>
 private constructor(
         context: Context,
@@ -114,17 +124,16 @@ private constructor(
     }
 
     /**
-     * Same as download but the image is always downloaded and the cache is not used.
-     * Kept private at the moment as its interest is not clear.
+     * Fetch data and the cache is not used.
      */
     private suspend fun forceFetch(key: String, customParams: Any?, target: Target<R>) {
+        withContext(UI) {
+            target.onPreReceive(key, customParams)
+        }
+
         if (cancelPotentialFetch(key, target)) {
             val task = DataFetchTask(target)
             target.taskHandler = TaskHandler(task)
-
-            withContext(UI) {
-                target.onPreReceive(key, customParams)
-            }
 
             task.execute(key, customParams)
         }
@@ -276,7 +285,6 @@ private constructor(
         }
     }
 
-    @Synchronized
     private fun writeToDiskCache(key: String, value: R): Boolean {
         var isOk = false
 
@@ -303,7 +311,6 @@ private constructor(
         return isOk
     }
 
-    @Synchronized
     private fun readFromDiskCache(key: String): R? {
         var data: R? = null
         diskLruCache?.let { diskLruCache ->
@@ -337,9 +344,13 @@ private constructor(
 
         var diskCacheSubDir = DEFAULT_DISK_CACHE_SUB_DIR
 
+        // Your implementation logic to make long running operation
+        // to fetch data
         var onFetchData = fun(key: String, customData: Any?): R? = null
 
-        var getSizeOf: ((key: String, value: R) -> Int)? = null
+        // To let the internal memory cache to know about the weight of
+        // the fetched data. You don't need to set it most of the time.
+        var getSizeOf: ((key: String, data: R) -> Int)? = null
 
         companion object {
 

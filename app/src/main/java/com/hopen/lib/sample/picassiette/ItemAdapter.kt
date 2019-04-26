@@ -10,6 +10,7 @@ import android.widget.TextView
 import androidx.annotation.WorkerThread
 import androidx.recyclerview.widget.RecyclerView
 import com.hopen.lib.picassiette.core.Picassiette
+import com.hopen.lib.picassiette.core.Picassiette.Config
 import com.hopen.lib.picassiette.core.Target
 import com.hopen.lib.sample.R
 import kotlinx.android.synthetic.main.item_view.view.*
@@ -24,7 +25,7 @@ class ItemAdapter(context: Context) : RecyclerView.Adapter<ItemViewHolder>() {
         Pair("Item $it", "https://via.placeholder.com/400x400.png?text=$it")
     }
 
-    private val picassiette = Picassiette.newInstance(Picassiette.Config<Bitmap>(context).apply {
+    private val picassiette = Picassiette.newInstance(Config<Bitmap>(context).apply {
         onFetchData = this@ItemAdapter::fetchData
     }, Bitmap::class.java)
 
@@ -68,4 +69,5 @@ class ItemViewHolder(view: View) : RecyclerView.ViewHolder(view) {
             imgPicture.setImageBitmap(data)
         }
     }
+
 }
