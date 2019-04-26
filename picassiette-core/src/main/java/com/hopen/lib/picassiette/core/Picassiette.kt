@@ -12,6 +12,7 @@ import kotlinx.coroutines.*
 import timber.log.Timber
 import java.io.File
 import java.io.IOException
+import java.lang.Exception
 import java.lang.ref.WeakReference
 import java.util.concurrent.locks.Condition
 import java.util.concurrent.locks.ReentrantLock
@@ -30,7 +31,7 @@ private constructor(
 
     private val parentJob = Job()
 
-    private val mainScope = CoroutineScope(UI + parentJob)
+    private val mainIOScope = CoroutineScope(IO + parentJob)
 
     private val memoryCache = object : LruCache<String, R>(memCacheSize) {
 
@@ -40,7 +41,7 @@ private constructor(
 
         override fun entryRemoved(evicted: Boolean, key: String, oldValue: R, newValue: R?) {
             if (evicted) {
-                mainScope.launch {
+                mainIOScope.launch {
                     writeToDiskCache(key, oldValue)
                 }
             }
@@ -54,8 +55,8 @@ private constructor(
     private var diskLruCache: DiskLruCache? = null
 
     init {
-        if(cacheEnabled) {
-            mainScope.launch {
+        if (cacheEnabled) {
+            mainIOScope.launch {
                 InitDiskCacheTask().execute(cacheDir)
             }
         }
@@ -65,16 +66,16 @@ private constructor(
      * Launch a task and binds it to the provided Target. The
      * binding is immediate if a data is found in the cache and will be done asynchronously
      * otherwise. A null data will be associated to the target if an error occurs. The
-     * target must not to be an anonymous object. See sample project.
+     * target must not be an anonymous object. See sample project.
      *
      * @param key The unique key to identify task.
      * @param customParams other params necessary for the task
      * @param target The target to bind the fetched data to.
      */
     fun fetch(key: String, customParams: Any?, target: Target<R>) {
-        mainScope.launch {
+        mainIOScope.launch {
 
-            val data = if(cacheEnabled) getDataFromCache(key) else null
+            val data = if (cacheEnabled) getDataFromCache(key) else null
 
             if (data == null) {
                 forceFetch(key, customParams, target)
@@ -92,17 +93,12 @@ private constructor(
      * @param key The key of the data that will be retrieved from the cache.
      * @return The cached data or null if it was not found.
      */
-    private suspend fun getDataFromCache(key: String): R? {
-        return withContext(IO) {
-            // First try the memory reference cache
-            synchronized(memoryCache) {
-                memoryCache[key]
+    private fun getDataFromCache(key: String): R? {
+        return synchronized(memoryCache) {
+            memoryCache[key]
 
-                // Then try the disk reference cache
-            } ?: readFromDiskCache(key)?.also {
-                addDataToCache(key, it)
-            }
-        }
+            // Then try the disk reference cache
+        } ?: readFromDiskCache(key)
     }
 
     /**
@@ -122,17 +118,15 @@ private constructor(
      * Kept private at the moment as its interest is not clear.
      */
     private suspend fun forceFetch(key: String, customParams: Any?, target: Target<R>) {
-        withContext(IO) {
-            if (cancelPotentialFetch(key, target)) {
-                val task = DataFetchTask(target)
-                //val taskHandler = TaskHandler(task)
+        if (cancelPotentialFetch(key, target)) {
+            val task = DataFetchTask(target)
+            target.taskHandler = TaskHandler(task)
 
-                withContext(UI){
-                    target.onPreReceive(key, customParams)
-                }
-
-                task.execute(key, customParams)
+            withContext(UI) {
+                target.onPreReceive(key, customParams)
             }
+
+            task.execute(key, customParams)
         }
     }
 
@@ -142,7 +136,7 @@ private constructor(
      * Returns false if the task in progress deals with the same key. The task is not
      * stopped in that case.
      */
-    private suspend fun cancelPotentialFetch(key: String, target: Target<R>): Boolean {
+    private fun cancelPotentialFetch(key: String, target: Target<R>): Boolean {
         val dataFetchTask = getDataFetchTask(target)
 
         if (dataFetchTask != null) {
@@ -157,13 +151,13 @@ private constructor(
         return true
     }
 
-    private suspend fun clearDiskCache() {
+    private fun clearDiskCache() {
         diskLruCache?.apply {
             try {
                 delete()
                 InitDiskCacheTask().execute(cacheDir)
             } catch (e: IOException) {
-                Timber.w("open disk cache error:$e", e)
+                Timber.w(e, "open disk cache error: $e")
             }
         }
     }
@@ -172,14 +166,12 @@ private constructor(
      * Clears the data cache used internally to improve performance.
      */
     fun clearCache() {
-        if(!cacheEnabled)
+        if (!cacheEnabled)
             return
 
-        mainScope.launch {
-            withContext(IO) {
-                memoryCache.evictAll()
-                clearDiskCache()
-            }
+        mainIOScope.launch {
+            memoryCache.evictAll()
+            clearDiskCache()
         }
     }
 
@@ -187,9 +179,7 @@ private constructor(
      * Cancel all jobs attached to the parent
      */
     fun cancelAll() {
-        mainScope.launch {
-            parentJob.cancelAndJoin()
-        }
+        parentJob.cancel()
     }
 
     /**
@@ -211,15 +201,31 @@ private constructor(
 
         private val targetReference: WeakReference<Target<R>>? = WeakReference(target)
 
-        suspend fun cancel() {
-            job.cancelAndJoin()
+        fun cancel() {
+            mainIOScope.launch {
+                job.cancelAndJoin()
+            }
         }
 
         suspend fun execute(key: String, customParams: Any?) {
             withContext(IO + job) {
                 this@DataFetchTask.key = key
 
-                val fetchedData = onFetchData(key, customParams)
+                val fetchedData = try {
+                    try {
+                        onFetchData(key, customParams)
+                    } catch (e: Exception) {
+                        Timber.e(e)
+                        null
+                    }
+                } catch (e: OutOfMemoryError) {
+                    memoryCache.evictAll()
+                    try {
+                        diskLruCache?.flush()
+                    } catch (e1: IOException) {
+                    }
+                    null
+                }
 
                 var data = fetchedData
 
@@ -259,70 +265,66 @@ private constructor(
 
     internal inner class InitDiskCacheTask {
 
-        suspend fun execute(cacheDir: File) {
-            withContext(IO) {
-                setupDiskCacheStarting = true
+        fun execute(cacheDir: File) {
+            setupDiskCacheStarting = true
 
-                diskCacheLock.withLock {
-                    diskLruCache = DiskLruCache.open(cacheDir, 1, 1, diskCacheSize)
-                    setupDiskCacheStarting = false // Finished initialization
-                    diskCacheLockCondition.signalAll() // Wake any waiting threads
-                }
+            diskCacheLock.withLock {
+                diskLruCache = DiskLruCache.open(cacheDir, 1, 1, diskCacheSize)
+                setupDiskCacheStarting = false // Finished initialization
+                diskCacheLockCondition.signalAll() // Wake any waiting threads
             }
         }
     }
 
-    private suspend fun writeToDiskCache(key: String, value: R): Boolean {
-        return withContext(IO) {
-            var isOk = false
+    @Synchronized
+    private fun writeToDiskCache(key: String, value: R): Boolean {
+        var isOk = false
 
-            diskLruCache?.let {
-                val cacheKey = key.md5()
-                try {
-                    it.edit(cacheKey)?.let { editor ->
-                        if (bitmapData) {
-                            val out = editor.newOutputStream(0)
-                            (value as Bitmap).compress(Bitmap.CompressFormat.PNG, 95, out)
-                            out.close()
-                        } else {
-                            editor.set(0, jsonConverter.toJson(value))
-                        }
-                        editor.commit()
-                        isOk = true
+        diskLruCache?.let {
+            val cacheKey = key.md5()
+            try {
+                it.edit(cacheKey)?.let { editor ->
+                    if (bitmapData) {
+                        val out = editor.newOutputStream(0)
+                        (value as Bitmap).compress(Bitmap.CompressFormat.PNG, 95, out)
+                        out.close()
+                    } else {
+                        editor.set(0, jsonConverter.toJson(value))
                     }
-                } catch (e: IOException) {
-                    isOk = false
-                    Timber.w("write disk lru cache error:$e", e)
+                    editor.commit()
+                    isOk = true
                 }
-            } ?: Timber.w("disk lru cache is null")
+            } catch (e: IOException) {
+                isOk = false
+                Timber.w(e, "write disk lru cache error:$e")
+            }
+        } ?: Timber.w("disk lru cache is null")
 
-            return@withContext isOk
-        }
+        return isOk
     }
 
-    private suspend fun readFromDiskCache(key: String): R? {
-        return withContext(IO) {
-            var data: R? = null
-            diskLruCache?.let { diskLruCache ->
-                val cacheKey = key.md5()
-                try {
-                    diskLruCache.get(cacheKey)?.let { snapshot ->
-                        if (bitmapData) {
-                            val `in` = snapshot.getInputStream(0)
-                            data = BitmapFactory.decodeStream(`in`) as R
-                            `in`.close()
-                        } else {
-                            data = jsonConverter.fromJson(snapshot.getString(0), object : TypeToken<R>() {}.type)
-                        }
-                        snapshot.close()
+    @Synchronized
+    private fun readFromDiskCache(key: String): R? {
+        var data: R? = null
+        diskLruCache?.let { diskLruCache ->
+            val cacheKey = key.md5()
+            try {
+                diskLruCache.get(cacheKey)?.let { snapshot ->
+                    if (bitmapData) {
+                        val `in` = snapshot.getInputStream(0)
+                        data = BitmapFactory.decodeStream(`in`) as R
+                        `in`.close()
+                    } else {
+                        data = jsonConverter.fromJson(snapshot.getString(0), object : TypeToken<R>() {}.type)
                     }
-                } catch (e: IOException) {
-                    Timber.w("Read disk lru cache error:$e", e)
+                    snapshot.close()
                 }
-            } ?: Timber.w("Disk lru cache is null")
+            } catch (e: IOException) {
+                Timber.w(e, "Read disk lru cache error: $e")
+            }
+        } ?: Timber.w("Disk lru cache is null")
 
-            return@withContext data
-        }
+        return data
     }
 
     class Config<R>(val context: Context) {
@@ -335,7 +337,7 @@ private constructor(
 
         var diskCacheSubDir = DEFAULT_DISK_CACHE_SUB_DIR
 
-        var onFetchData = fun(_: String, _: Any?): R? = null
+        var onFetchData = fun(key: String, customData: Any?): R? = null
 
         var getSizeOf: ((key: String, value: R) -> Int)? = null
 
@@ -364,10 +366,6 @@ private constructor(
 
         private val diskCacheLockCondition: Condition = diskCacheLock.newCondition()
 
-        private fun <T> throwGetException(): T {
-            throw IllegalAccessException("Call to getters is not allowed")
-        }
-
         // Creates a unique subdirectory of the designated app cache directory. Tries to use external
         // but if not mounted, falls back on internal storage.
         private fun getDiskCacheDir(context: Context, uniqueName: String): File {
@@ -385,14 +383,20 @@ private constructor(
         }
 
         fun <R> newInstance(config: Config<R>, clazz: Class<R>): Picassiette<R> {
+
+            val isBitmapData = Bitmap::class.java.isAssignableFrom(clazz)
+
             return with(config) {
+                if (isBitmapData && getSizeOf == null) {
+                    getSizeOf = fun(_: String, bitmap: R): Int = (bitmap as Bitmap).byteCount / 1024
+                }
                 Picassiette(
                         context,
                         cacheEnabled,
                         memCacheSize,
                         diskCacheSize,
                         diskCacheSubDir,
-                        Bitmap::class.java.isAssignableFrom(clazz),
+                        isBitmapData,
                         onFetchData,
                         getSizeOf
                 )

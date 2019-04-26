@@ -20,6 +20,7 @@ android {
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
     }
+
 }
 
 dependencies {
@@ -31,6 +32,10 @@ dependencies {
     implementation "androidx.annotation:annotation:$android_annotation_version"
 
     implementation group: 'com.google.android.material', name: 'material', version: "$material_version"
+
+    implementation "com.jakewharton.timber:timber:$timber_version"
+
+    implementation "com.squareup.okhttp3:okhttp:$okhttp_version"
 
     implementation project(":picassiette-core")
 
