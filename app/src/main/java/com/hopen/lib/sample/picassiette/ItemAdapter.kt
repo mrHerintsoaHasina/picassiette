@@ -44,8 +44,8 @@ class ItemAdapter(context: Context) : RecyclerView.Adapter<ItemViewHolder>() {
     }
 
     @WorkerThread
-    private fun fetchData(key: String, customData: Any?): Bitmap? {
-        val imageSize = customData as? Pair<Int, Int>
+    private fun fetchData(key: String, customParams: Any?): Bitmap? {
+        val imageSize = customParams as? Pair<Int, Int>
         val width = imageSize?.first
         val height = imageSize?.second
         return BitmapDownloader.downloadBitmap(key, width, height)
