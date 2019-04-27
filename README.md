@@ -117,7 +117,7 @@ class Config<R>(val context: Context) {
 ## Contributing
 Feel free to contribute if you found bugs, performance issues or improvements. Send me a pull requests :)
 ## License
-Apache 2.0. See the [LICENSE](https://github.com/mrHerintsoaHasina/flextools/blob/master/LICENSE.md) file for details.
+Apache 2.0. See the [LICENSE](https://github.com/mrHerintsoaHasina/picassiette/blob/master/LICENSE.md) file for details.
 ```
    Copyright 2019 Hasina R.
 
