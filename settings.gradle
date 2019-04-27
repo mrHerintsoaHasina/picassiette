@@ -1,1 +1,1 @@
-include ':app', ':picassiette-core'
+include ':app', ':core'
