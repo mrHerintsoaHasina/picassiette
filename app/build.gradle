@@ -37,7 +37,7 @@ dependencies {
 
     implementation "com.squareup.okhttp3:okhttp:$okhttp_version"
 
-    implementation project(":picassiette-core")
+    implementation project(':core')
 
     testImplementation "junit:junit:$junit_version"
     androidTestImplementation "androidx.test:runner:$test_runner_version"

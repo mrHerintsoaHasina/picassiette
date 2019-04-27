@@ -26,13 +26,13 @@ if (project.hasProperty("android")) { // Android libraries
     }
 }
 
-task javadocJar(type: Jar, dependsOn: javadoc) {
-    classifier = 'javadoc'
-    from javadoc.destinationDir
-}
+//task javadocJar(type: Jar, dependsOn: javadoc) {
+//    classifier = 'javadoc'
+//    from javadoc.destinationDir
+//}
 
 artifacts {
-    archives javadocJar
+    //archives javadocJar
     archives sourcesJar
 }
 
