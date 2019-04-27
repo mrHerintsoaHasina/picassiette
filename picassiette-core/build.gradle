@@ -1,0 +1,73 @@
+apply plugin: 'com.android.library'
+apply plugin: 'kotlin-android'
+apply plugin: "com.github.dcendents.android-maven"
+
+ext {
+    bintrayRepo = 'picassiette'
+    bintrayName = 'picassiette-core'
+
+    publishedGroupId = 'com.hopen.lib'
+    libraryName = 'Picassiette'
+    artifact = 'picassiette-core'
+
+    libraryDescription = 'A light-weight library to make asynchronous call from a RecyclerView (or ListView) and receive result correctly on the item view.'
+
+    siteUrl = 'https://github.com/mrHerintsoaHasina/picassiette'
+    gitUrl = 'https://github.com/mrHerintsoaHasina/picassiette.git'
+
+    libraryVersion = '1.0.0'
+    allLabels = ['android', 'android-library', 'android-ui', 'kotlin', 'coroutines']
+
+    developerId = 'mrhas'
+    developerName = 'Hasina R.'
+    developerEmail = 'hasina.anddev@gmail.com'
+
+    licenseName = 'The Apache Software License, Version 2.0'
+    licenseUrl = 'http://www.apache.org/licenses/LICENSE-2.0.txt'
+    allLicenses = ["Apache-2.0"]
+}
+
+android {
+
+    compileSdkVersion compile_sdk_version
+    defaultConfig {
+        minSdkVersion min_sdk_version
+        targetSdkVersion compile_sdk_version
+        versionCode version_code
+        versionName version_name
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+    }
+
+}
+
+dependencies {
+    implementation fileTree(dir: 'libs', include: ['*.jar'])
+    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version"
+
+    implementation "org.jetbrains.kotlinx:kotlinx-coroutines-core:$coroutine_version"
+    implementation "org.jetbrains.kotlinx:kotlinx-coroutines-android:$coroutine_version"
+
+    implementation "androidx.legacy:legacy-support-v4:$legacy_support_v4_version"
+
+    implementation "com.jakewharton.timber:timber:$timber_version"
+    implementation "com.jakewharton:disklrucache:$disklrucache_version"
+
+    implementation "com.google.code.findbugs:jsr305:$google_code_findbugs_jsr_version"
+    implementation "com.google.code.gson:gson:$gson_version"
+
+    testImplementation "junit:junit:$junit_version"
+    androidTestImplementation "androidx.test:runner:$test_runner_version"
+}
+repositories {
+    mavenCentral()
+}
+
+apply from: "../bintrayv1.gradle"
+apply from: "../maven.gradle"
