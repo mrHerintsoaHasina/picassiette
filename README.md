@@ -91,6 +91,7 @@ picassiette.fetch(key, customParams, object : Target<Favorite>() {
     })
 ```
 because Picassiette holds the instance in a WeakReference to avoid memory leak and the Garbage Collector can clear the instance easly.
+If you need more details, there is a sample app in the repository (using a bitmap as custom data).
 
 ## Picassiette configuration
 You can customize picassiette behaviour with a `Picassiette.Config` instance :
