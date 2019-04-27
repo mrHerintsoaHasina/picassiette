@@ -346,7 +346,7 @@ private constructor(
 
         // Your implementation logic to make long running operation
         // to fetch data
-        var onFetchData = fun(key: String, customData: Any?): R? = null
+        var onFetchData = fun(key: String, customParams: Any?): R? = null
 
         // To let the internal memory cache to know about the weight of
         // the fetched data. You don't need to set it most of the time.
