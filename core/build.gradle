@@ -15,7 +15,7 @@ ext {
     siteUrl = 'https://github.com/mrHerintsoaHasina/picassiette'
     gitUrl = 'https://github.com/mrHerintsoaHasina/picassiette.git'
 
-    libraryVersion = '1.0.0'
+    libraryVersion = '1.0.1'
     allLabels = ['android', 'android-library', 'android-ui', 'kotlin', 'coroutines']
 
     developerId = 'mrhas'
