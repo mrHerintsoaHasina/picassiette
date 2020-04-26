@@ -13,7 +13,7 @@ Add to your app `build.gradle` :
 * Project with androidx 
 ````
 dependencies {
-    implementation 'com.hopen.lib:picassiette-core:1.0.0'
+    implementation 'com.hopen.lib:picassiette-core:1.0.1'
 }
 ````
 
