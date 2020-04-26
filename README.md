@@ -16,12 +16,7 @@ dependencies {
     implementation 'com.hopen.lib:picassiette-core:1.0.0'
 }
 ````
-* Project with android support
-````
-dependencies {
-    implementation 'com.hopen.lib:picassiette-core-support:1.0.0'
-}
-````
+
 ## How to use
 Define your RecyclerView.Adapter :
 ```
